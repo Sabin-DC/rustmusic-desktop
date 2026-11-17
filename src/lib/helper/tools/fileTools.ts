@@ -1,6 +1,6 @@
 // Chemins de fichiers : copier dans le presse-papiers, montrer dans l'explorateur.
 import { get } from "svelte/store";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { revealItemsInDir } from "@tauri-apps/plugin-opener";
 import { t } from "#lib/i18n";
 import { toasts } from "#lib/stores/ui/toast.store";
 
@@ -16,7 +16,7 @@ export async function copyPath(chemin: string, message = chemin) {
 /** « Révéler » plutôt qu'ouvrir : marche hors $HOME et ne lance jamais le fichier. */
 export async function revealInFolder(chemin: string) {
   try {
-    await revealItemInDir(chemin);
+    await revealItemsInDir(chemin);
   } catch (e) {
     console.error("[fichier] explorateur :", e);
   }

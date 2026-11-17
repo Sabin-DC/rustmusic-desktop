@@ -362,7 +362,7 @@ async fn configure_render_pipeline(_app_state: &AppState, _db_mode: crate::core:
 
 /// Instance unique : une 2e instance réveille la première puis se ferme. En Flatpak, le nom
 /// D-Bus reprend l'identifiant de l'appli, le seul que le bac à sable autorise d'office.
-fn single_instance() -> tauri::plugin::TauriPlugin<tauri::Wry> {
+fn single_instance() -> tauri::plugin::TauriPlugin<tauri::DynRuntime> {
     let builder = tauri_plugin_single_instance::Builder::new().callback(focus_existing_window);
     match crate::core::sandbox::flatpak_id() {
         Some(id) => builder.dbus_id(id).build(),
@@ -504,7 +504,12 @@ pub async fn run() {
     // refermait une ligne plus loin en découvrant l'instance existante. Cinq
     // occurrences dans le journal, toutes fausses.
 
+    // Tauri 3 + CEF bloquent (`block_on`) pendant leur démarrage : interdit tant que ce fil
+    // pilote tokio. `block_in_place` le laisse le temps de construire et lancer l'application.
+    tokio::task::block_in_place(move || {
         tauri::Builder::default()
+        // Chromium (CEF) : l'interface suit la fréquence de l'écran au lieu des 60 i/s de WebKitGTK.
+        .runtime(tauri_runtime_cef::Cef::default())
         // ⚠️ IMPORTANT : single-instance DOIT être le premier plugin enregistré
         // (recommandation officielle Tauri pour que la détection fonctionne).
         // Si une 2e instance tente de se lancer, on focus la fenêtre existante
@@ -603,79 +608,29 @@ pub async fn run() {
                 })
                 .build(app)?;
 
-            // Linux : WebKitGTK ne voit pas toujours le pointeur quitter la fenêtre et garde
-            // le survol ; GTK reçoit l'entrée et la sortie, relayées au micro-lecteur.
+            // Linux : l'entrée et la sortie du pointeur dans la fenêtre, vues par GTK,
+            // relayées au micro-lecteur (GTK 4 : un contrôleur de mouvement).
             #[cfg(target_os = "linux")]
             {
                 if let Some(gtk_window) = app.get_webview_window("main").and_then(|w| w.gtk_window().ok()) {
-                    use gtk::gdk::{EventMask, NotifyType};
-                    use gtk::prelude::{WidgetExt, WidgetExtManual};
+                    use gtk::prelude::WidgetExt;
                     use tauri::Emitter;
-                    gtk_window.add_events(EventMask::ENTER_NOTIFY_MASK | EventMask::LEAVE_NOTIFY_MASK);
+                    let mouvement = gtk::EventControllerMotion::new();
                     let handle = app.handle().clone();
-                    gtk_window.connect_enter_notify_event(move |_, event| {
-                        if event.detail() != NotifyType::Inferior {
-                            let _ = handle.emit("window-pointer", true);
-                        }
-                        gtk::glib::Propagation::Proceed
+                    mouvement.connect_enter(move |_, _, _| {
+                        let _ = handle.emit("window-pointer", true);
                     });
                     let handle = app.handle().clone();
-                    gtk_window.connect_leave_notify_event(move |_, event| {
-                        if event.detail() != NotifyType::Inferior {
-                            let _ = handle.emit("window-pointer", false);
-                        }
-                        gtk::glib::Propagation::Proceed
+                    mouvement.connect_leave(move |_| {
+                        let _ = handle.emit("window-pointer", false);
                     });
+                    gtk_window.add_controller(mouvement);
                 }
             }
 
-            // ─── DÉTECTION CRASH DU WEB PROCESS (Linux) ───────────
-            // Si le processus de rendu WebKit meurt (SIGABRT EGL/DMABUF, mix
-            // AppImage/libs hôte…), la fenêtre reste blanche mais le process
-            // principal survit : notify_ui_ready n'arrivera jamais, et une
-            // fermeture « propre » (Alt+F4) désarmerait la sentinelle. On
-            // écoute donc le signal WebKit `web-process-terminated` : échec
-            // GPU persisté immédiatement, puis redémarrage automatique →
-            // l'app revient d'elle-même en rendu logiciel.
-            #[cfg(target_os = "linux")]
-            {
-                if let Some(window) = app.get_webview_window("main") {
-                    let app_handle = app.handle().clone();
-                    let _ = window.with_webview(move |platform_webview| {
-                        use webkit2gtk::WebViewExt;
-                        platform_webview.inner().connect_web_process_terminated(move |_wv, reason| {
-                            if reason != webkit2gtk::WebProcessTerminationReason::Crashed {
-                                log::error!("🖥  WebKit web process terminated ({:?}) — not a crash, ignoring", reason);
-                                return;
-                            }
-                            // Crash en mode software = pas un problème GPU :
-                            // on log seulement (et surtout pas de boucle de
-                            // redémarrages infinis).
-                            if !crate::core::gpu_sentinel::booted_gpu() {
-                                log::error!("🖥  WebKit web process crashed while already in software mode — not restarting");
-                                return;
-                            }
-                            log::error!("🖥  WebKit web process crashed (GPU mode) → recording GPU failure, restarting in software mode");
-                            crate::core::gpu_sentinel::mark_web_process_crashed();
-                            // Ceinture + bretelles : la sentinelle force le
-                            // fallback au prochain boot même si l'écriture DB
-                            // ci-dessous échoue.
-                            crate::core::gpu_sentinel::arm();
-                            let app_handle = app_handle.clone();
-                            tauri::async_runtime::spawn(async move {
-                                let state = app_handle.state::<AppState>();
-                                let _ = crate::repository::settings::settings_repository::SettingsRepository::set(
-                                    &state.pool,
-                                    crate::core::gpu_sentinel::GPU_BOOT_FAILED_KEY,
-                                    "1",
-                                )
-                                .await;
-                                app_handle.restart();
-                            });
-                        });
-                    });
-                }
-            }
+            // Le rendu passe par Chromium (CEF) : le crochet `web-process-terminated` de
+            // WebKitGTK n'existe plus. La sentinelle GPU reste armée au démarrage et
+            // désarmée par `notify_ui_ready`, ce qui couvre la fenêtre jamais dessinée.
 
             // ─── SERVEUR DLNA ──────────────────────────────────
             // Ici et pas avant : à ce point, le plugin d'instance unique a
@@ -779,6 +734,7 @@ pub async fn run() {
                 crate::core::audio_player::output::pipewire_profile::restore_all();
             }
         });
+    });
 }
 
 #[cfg(test)]

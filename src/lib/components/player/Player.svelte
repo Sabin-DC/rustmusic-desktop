@@ -1,6 +1,6 @@
 <script lang="ts">
 import { volume } from "#lib/stores/player/volume.store";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { revealItemsInDir } from "@tauri-apps/plugin-opener";
 import Icon from "@iconify/svelte";
 import LoadingRing from "#lib/components/ui/loader/LoadingRing.svelte";
 import { t, currentLocale } from "#lib/i18n";
@@ -163,7 +163,7 @@ async function copyPath() {
 /** « Révéler » plutôt qu'ouvrir : marche hors $HOME et ne lance jamais le fichier. */
 async function handleOpenPath(path: string) {
   try {
-    await revealItemInDir(path);
+    await revealItemsInDir(path);
   } catch (e) {
     console.error("Impossible d'ouvrir le dossier du morceau", e);
   }

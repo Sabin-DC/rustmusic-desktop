@@ -202,6 +202,7 @@ pub fn set_compact_window_size(
 ) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
+        use tauri::Manager;
         let target = window.clone();
         window
             .run_on_main_thread(move || {
@@ -210,7 +211,8 @@ pub fn set_compact_window_size(
                 match (width, height) {
                     (Some(w), Some(h)) => {
                         gtk_window.set_size_request(w, h);
-                        gtk_window.resize(w, h);
+                        // GTK 4 n'a plus `resize` : la taille par défaut fait le même office.
+                        gtk_window.set_default_size(w, h);
                     }
                     _ => gtk_window.set_size_request(-1, -1),
                 }

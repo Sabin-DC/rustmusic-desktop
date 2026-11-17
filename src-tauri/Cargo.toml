@@ -21,16 +21,20 @@ name = "rustmusic_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "2.7.1", features = [] }
+tauri-build = { version = "=3.0.0-alpha.4", features = [] }
 
 [dependencies]
-tauri = { version = "2.12.2", features = ["protocol-asset", "tray-icon"] }
-tauri-plugin-opener = "2.7.0"
-tauri-plugin-dialog = "2.8.1"
-tauri-plugin-autostart = "2.7.0"
-tauri-plugin-notification = "2.5.1"
-tauri-plugin-process = "2.4.0"
-tauri-plugin-single-instance = "2.5.2"
+tauri = { version = "=3.0.0-alpha.6", features = ["protocol-asset", "tray-icon"] }
+# Chromium (CEF) au lieu de WebKitGTK : rendu au rythme de l'écran (144 Hz…), pas plafonné à 60.
+tauri-runtime-cef = "=3.0.0-alpha.7"
+tauri-plugin-opener = "=3.0.0-alpha.3"
+# Sans `gtk3` (défaut) : GTK 3 et GTK 4 (runtime CEF) ne peuvent pas cohabiter dans un processus.
+# Les dialogues de fichiers passent par le portail XDG du bureau.
+tauri-plugin-dialog = { version = "=3.0.0-alpha.4", default-features = false, features = ["xdg-portal"] }
+tauri-plugin-autostart = "=3.0.0-alpha.3"
+tauri-plugin-notification = "=3.0.0-alpha.3"
+tauri-plugin-process = "=3.0.0-alpha.3"
+tauri-plugin-single-instance = "=3.0.0-alpha.3"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1.0.151"
 base64 = "0.23.1"
@@ -76,7 +80,7 @@ regex = "1.13.1"
 rayon = "1.12.0"
 reqwest = { version = "0.13.5", features = ["json"] }
 urlencoding = "2"
-tauri-plugin-updater = "2.13.2"
+tauri-plugin-updater = "=3.0.0-alpha.3"
 image = "0.25.10"
 fast_image_resize = { version = "6.1", default-features = false, features = ["image"] }
 num_cpus = "1.17.0"
@@ -90,7 +94,7 @@ socket2 = "0.6.5"
 aws-lc-rs = { version = "1.18.1", default-features = false, features = ["aws-lc-sys", "prebuilt-nasm"] }
 async-trait = "0.1"
 souvlaki = "0.8"
-tauri-plugin-window-state = "2.5.0"
+tauri-plugin-window-state = "=3.0.0-alpha.2"
 
 # WASAPI exclusive mode (Windows uniquement) — bit-perfect, bypass mixer
 # Windows. Activable via Réglages → Audio → "WASAPI exclusive". Sur les
@@ -123,15 +127,8 @@ objc2-app-kit = { version = "0.3", default-features = false, features = ["std", 
 # Même version que celle de CPAL : `alsa-sys` lie libasound et ne peut figurer
 # qu'une fois dans l'arbre. À monter en même temps que CPAL.
 alsa = "0.11"
-# Accès direct au WebView WebKitGTK (via WebviewWindow::with_webview) pour
-# écouter le signal `web-process-terminated` : détection du crash du processus
-# de rendu (EGL/DMABUF, mix AppImage/libs hôte) → fallback rendu logiciel.
-# Version épinglée sur celle que wry (Tauri) tire déjà → aucun crate en plus.
-# v2_20 = version mini du signal ; wry active de toute façon des features
-# plus récentes.
-webkit2gtk = { version = "=2.0.2", features = ["v2_20"] }
-# Taille fixe du mini-lecteur (GtkWindow::set_size_request) ; version tirée par tao.
-gtk = "0.18"
+# Taille fixe du mini-lecteur (GtkWindow::set_size_request) ; GTK 4, version tirée par le runtime CEF.
+gtk = { package = "gtk4", version = "0.11.4" }
 # Réservation de carte audio via org.freedesktop.ReserveDevice1 (D-Bus) pour
 # que PipeWire/Pulse libère le `hw:` avant le DoP exclusif. Version alignée sur
 # l'arbre existant (contrôles média).

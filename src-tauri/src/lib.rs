@@ -706,12 +706,8 @@ pub async fn run() {
             // frontend n'a pas eu le temps d'appeler notify_ui_ready
             // (utilisateur qui ferme l'app immédiatement). Sans ça, un
             // fast-close serait compté comme un crash GPU au prochain boot.
-            // Exception : si le web process WebKit a crashé (fenêtre blanche),
-            // un Alt+F4 ne doit PAS effacer l'échec enregistré.
             if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if !crate::core::gpu_sentinel::web_process_crashed() {
-                    crate::core::gpu_sentinel::disarm();
-                }
+                crate::core::gpu_sentinel::disarm();
 
                 // Sauvegarde explicite de l'état de la fenêtre.
                 crate::core::window_geometry::save_now(window.app_handle());

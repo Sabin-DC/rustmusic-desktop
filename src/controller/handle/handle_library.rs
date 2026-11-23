@@ -13,30 +13,55 @@ use crate::commands::playback::{recent_command, volume_command};
 use crate::app::music_app::*;
 
 impl MusicApp {
+    /// Bascule sur la source d'indice `i` : bibliothèque, listes de lecture, récents.
+    pub(crate) fn apply_source(&mut self, i: usize) {
+        self.source = i;
+        self.menu = None;
+        let vm = ViewModel::build(&self.data, self.route(), self.source, Utc::now());
+        let source = vm.sources.get(i).and_then(|s| s.id);
+        let first = self
+            .data
+            .libraries
+            .iter()
+            .find(|l| match source {
+                None => true,
+                Some(0) => l.server_id.is_none(),
+                Some(id) => l.server_id == Some(id),
+            })
+            .map(|l| l.id);
+        if first.is_some() && first != self.data.library_id {
+            self.data.library_id = first;
+            self.load_library_data();
+        }
+        self.load_playlists();
+        self.load_recent();
+    }
+
+    /// Remet la source choisie à la dernière session, une fois bibliothèques et serveurs connus.
+    pub(crate) fn restore_source(&mut self) {
+        let Some(saved) = self.data.setting("source").map(str::to_string) else { return };
+        let want = if saved == "all" { None } else { saved.parse::<i64>().ok() };
+        if saved != "all" && want.is_none() {
+            return;
+        }
+        let sources = crate::models::home::ViewModel::build(&self.data, self.route(), self.source, Utc::now()).sources;
+        if let Some(i) = sources.iter().position(|s| s.id == want) {
+            if i != self.source {
+                self.apply_source(i);
+            }
+        }
+    }
+
     /// Suite de `handle_player` : sources, bibliothèques, sorties, réglages.
     pub(crate) fn handle_library(&mut self, message: Msg) -> bool {
         match message {
             Msg::ChooseSource(i) => {
-                self.source = i;
-                self.menu = None;
-                let vm = ViewModel::build(&self.data, self.route(), self.source, Utc::now());
-                let source = vm.sources.get(i).and_then(|s| s.id);
-                let first = self
-                    .data
-                    .libraries
-                    .iter()
-                    .find(|l| match source {
-                        None => true,
-                        Some(0) => l.server_id.is_none(),
-                        Some(id) => l.server_id == Some(id),
-                    })
-                    .map(|l| l.id);
-                if first.is_some() && first != self.data.library_id {
-                    self.data.library_id = first;
-                    self.load_library_data();
-                }
-                self.load_playlists();
-                self.load_recent();
+                self.apply_source(i);
+                let key = match ViewModel::build(&self.data, self.route(), self.source, Utc::now()).sources.get(i).and_then(|s| s.id) {
+                    None => "all".to_string(),
+                    Some(id) => id.to_string(),
+                };
+                self.set_setting("source", key);
             }
             Msg::ChooseLibrary(id) => {
                 self.menu = None;

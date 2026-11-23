@@ -72,6 +72,7 @@ impl MusicApp {
                         me.data.libraries = l;
                         me.data.library_id = me.data.pick_default_library();
                         me.load_library_data();
+                        me.restore_source();
                         // 1,2 s après le chargement, sans fenêtre ouverte.
                         if !me.export {
                             me.banners_update(BannerMsg::Start);
@@ -123,6 +124,7 @@ impl MusicApp {
             |me, (servers, online)| {
                 if let Ok(s) = servers {
                     me.data.servers = s;
+                    me.restore_source();
                 }
                 if let Ok(o) = online {
                     me.data.server_online = o.into_iter().collect();

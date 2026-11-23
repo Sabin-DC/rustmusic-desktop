@@ -1946,6 +1946,8 @@ dependencies = [
 [[package]]
 name = "karbon-ui"
 version = "0.3.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3945d18f0419608257cda6c73c5094a2ec562597e7da52068299570f5e9cd833"
 dependencies = [
  "block2",
  "karbon-ui-macros",
@@ -1969,10 +1971,14 @@ dependencies = [
 [[package]]
 name = "karbon-ui-macros"
 version = "0.3.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d09d80e30bbe6b0ee13d4d8c35141454c63d8494f1d8d4678e06a8704833cec"
 
 [[package]]
 name = "karbon-updater"
 version = "0.3.27"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "da553a0874e78a1e85d2cff884ecf345ba9189121a4f49a2eaec47591f7dc2e7"
 dependencies = [
  "minisign-verify",
  "ureq",

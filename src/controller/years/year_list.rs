@@ -9,7 +9,7 @@ use crate::commands::library::library_command;
 
 impl MusicApp {
     pub(crate) fn years_open(&mut self) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         if !self.views.years.as_ref().is_some_and(|p| p.library_id == library) {
             self.views.years = Some(YearsPage { library_id: library, recent_items: true, ..Default::default() });
         }
@@ -53,7 +53,7 @@ impl MusicApp {
 
     /// Cent titres d'une décennie entière, ou d'une seule année.
     pub(crate) fn period_mix(&mut self, decade: i64, year: Option<i64>) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         let app = self.backend.app.clone();
         self.backend.call(
             async move {

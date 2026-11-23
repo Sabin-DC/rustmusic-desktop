@@ -2,7 +2,7 @@
     {@include "../library/LibraryHeader.ui"}
     <div class="flex-1 min-h-0 overflow-hidden">
     {#if let Some(yv) = self.years_view()}
-    {#each self.views.years.iter() as page (page.library_id)}
+    {#each self.views.years.iter() as page (page.key())}
     {#if yv.index.is_empty() && self.stats_loading()}
         <div class="flex items-center justify-center py-20 text-(--rg-mu)"><Spinner width={26.} /></div>
     {:else if yv.index.is_empty()}

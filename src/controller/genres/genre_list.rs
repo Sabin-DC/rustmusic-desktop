@@ -12,7 +12,7 @@ use crate::commands::library::library_command;
 
 impl MusicApp {
     pub(crate) fn genres_open(&mut self) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         if !self.views.genres.as_ref().is_some_and(|p| p.library_id == library) {
             self.views.genres = Some(GenresPage {
                 library_id: library,
@@ -87,7 +87,7 @@ impl MusicApp {
 
     /// Les titres du genre, dans l'ordre ou mélangés.
     pub(crate) fn genre_play(&mut self, genre: String, shuffle: bool) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         let app = self.backend.app.clone();
         self.backend.call(
             async move { library_command::get_tracks_by_genre(app.state(), library, genre).await.unwrap_or_default() },

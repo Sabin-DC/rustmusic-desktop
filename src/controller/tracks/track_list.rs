@@ -60,7 +60,7 @@ impl TracksPage {
 impl MusicApp {
     /// Ouvre la page (ou la retrouve) et charge sa liste.
     pub(crate) fn tracks_open(&mut self) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         let keep = self.views.tracks.as_ref().is_some_and(|p| p.library_id == library);
         if !keep {
             self.views.tracks = Some(TracksPage::new(library));
@@ -208,7 +208,7 @@ impl MusicApp {
             TracksMsg::GenreMenu => {
                 reload = false;
                 let need = page.genres.is_none();
-                let id = page.library_id;
+                let id = page.library_id.clone();
                 let open = self.popup("tracks.genre");
                 self.menu = if open { None } else { Some(crate::models::app::Menu::Popup("tracks.genre")) };
                 if need {

@@ -22,6 +22,8 @@ pub struct Data {
     pub settings: HashMap<String, String>,
     pub libraries: Vec<Library>,
     pub library_id: Option<i64>,
+    /// Les bibliothèques cochées, `library_id` comprise. Vide : seule `library_id` est active.
+    pub library_ids: Vec<i64>,
     pub last_scan: Option<String>,
     pub scan: Option<ScanProgress>,
 

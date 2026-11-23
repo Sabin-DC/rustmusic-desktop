@@ -240,24 +240,30 @@ impl MusicApp {
         self.data.random.clear();
         self.data.last_scan = None;
         self.data.library_loading = false;
-        let Some(id) = self.data.library_id else {
+        let Some(id) = self.data.scope() else {
             return;
         };
         self.data.library_loading = true;
+        let primary = self.data.library_id;
         let app = self.backend.app.clone();
+        let query = id.clone();
         self.backend.call(
             async move {
-                let stats = library_command::get_library_stats(app.state(), id).await;
-                let genres = library_command::get_genres(app.state(), id).await;
-                let mix_genres = library_command::get_mix_genres(app.state(), id).await;
-                let albums = library_command::get_albums(app.state(), id, None).await;
-                let artists = library_command::get_artists(app.state(), id).await;
-                let last_scan = library_command::get_library_last_scan(app.state(), id).await;
-                let random = library_command::get_mix_tracks(app.state(), id, "hasard".into(), None, None, None, 4).await;
+                let id = query;
+                let stats = library_command::get_library_stats(app.state(), id.clone()).await;
+                let genres = library_command::get_genres(app.state(), id.clone()).await;
+                let mix_genres = library_command::get_mix_genres(app.state(), id.clone()).await;
+                let albums = library_command::get_albums(app.state(), id.clone(), None).await;
+                let artists = library_command::get_artists(app.state(), id.clone()).await;
+                let last_scan = match primary {
+                    Some(p) => library_command::get_library_last_scan(app.state(), p).await,
+                    None => Ok(None),
+                };
+                let random = library_command::get_mix_tracks(app.state(), id.clone(), "hasard".into(), None, None, None, 4).await;
                 (stats, genres, mix_genres, albums, artists, last_scan, random)
             },
             move |me, (stats, genres, mix_genres, albums, artists, last_scan, random)| {
-                if me.data.library_id != Some(id) {
+                if me.data.scope().as_ref() != Some(&id) {
                     return false;
                 }
                 me.data.stats = stats.ok();
@@ -276,7 +282,7 @@ impl MusicApp {
 
     /// `draw` — le tirage de chaque mix « Pour vous ».
     pub(crate) fn draw_mixes(&mut self) {
-        let Some(id) = self.data.library_id else {
+        let Some(id) = self.data.scope() else {
             return;
         };
         let vm = ViewModel::build(&self.data, self.route(), self.source, Utc::now());
@@ -288,13 +294,15 @@ impl MusicApp {
             let app = self.backend.app.clone();
             let key = mix.key.clone();
             let kind = mix.source_kind.to_string();
+            let wanted = id.clone();
+            let id = id.clone();
             let genre = mix.source_genre.clone();
             self.backend.call(
                 async move {
                     library_command::get_mix_tracks(app.state(), id, kind, genre, None, None, MIX_SIZE).await
                 },
                 move |me, tracks| {
-                    if me.data.library_id != Some(id) {
+                    if me.data.scope().as_ref() != Some(&wanted) {
                         return false;
                     }
                     me.data.mixes.insert(

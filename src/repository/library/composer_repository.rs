@@ -40,13 +40,13 @@ impl ComposerRepository {
         sqlx::query("DELETE FROM composer_images WHERE image_url = ''").execute(pool).await.map(|_| ())
     }
 
-    pub async fn rows(pool: &SqlitePool, library_id: i64) -> Result<Vec<ComposerRow>, sqlx::Error> {
+    pub async fn rows(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Result<Vec<ComposerRow>, sqlx::Error> {
         sqlx::query_as(
             "SELECT lt.id, lt.library_album_id, lt.duration, json_extract(lt.tags, '$.composer') AS c
              FROM library_tracks lt
-             WHERE lt.library_id = ? AND TRIM(COALESCE(json_extract(lt.tags, '$.composer'), '')) <> ''",
+             WHERE lt.library_id IN (SELECT value FROM json_each(?)) AND TRIM(COALESCE(json_extract(lt.tags, '$.composer'), '')) <> ''",
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .fetch_all(pool)
         .await
     }
@@ -68,11 +68,11 @@ impl ComposerRepository {
     }
 
     /// Les artistes de la bibliothèque : (nom normalisé, id), pour relier un compositeur à sa page d'artiste.
-    pub async fn library_artists(pool: &SqlitePool, library_id: i64) -> Result<Vec<(String, String)>, sqlx::Error> {
+    pub async fn library_artists(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Result<Vec<(String, String)>, sqlx::Error> {
         sqlx::query_as(
-            "SELECT a.name_normalized, a.id FROM library_artists lat INNER JOIN artists a ON a.id = lat.artist_id WHERE lat.library_id = ?",
+            "SELECT a.name_normalized, a.id FROM library_artists lat INNER JOIN artists a ON a.id = lat.artist_id WHERE lat.library_id IN (SELECT value FROM json_each(?))",
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .fetch_all(pool)
         .await
     }

@@ -10,7 +10,7 @@ pub(crate) const GENRE_NAMES: &str = "
                lt.artist_id AS artist_id, lt.last_played_at AS last_played_at
         FROM library_cache lc
         INNER JOIN library_tracks lt ON lt.cache_id = lc.id
-        WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''
+        WHERE lt.library_id IN (SELECT value FROM json_each(?)) AND lc.genre IS NOT NULL AND lc.genre != ''
     ),
     names AS (
         SELECT k, genre AS name FROM (
@@ -25,7 +25,7 @@ impl LibraryGenreRepository {
     /// Récupère tous les genres d'une bibliothèque avec stats (albums, titres, dernière écoute)
     pub async fn find_all_genres(
         pool: &SqlitePool,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     ) -> Result<Vec<(String, i64, i64, Option<String>)>, sqlx::Error> {
         sqlx::query_as::<_, (String, i64, i64, Option<String>)>(sqlx::AssertSqlSafe(format!(
             "WITH {GENRE_NAMES}
@@ -39,13 +39,13 @@ impl LibraryGenreRepository {
              GROUP BY g.k
              ORDER BY total_tracks DESC"
         )))
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .fetch_all(pool)
         .await
     }
 
     /// Les 4 premières pochettes de chaque genre, en une requête (genre en minuscules, pochette).
-    pub async fn find_all_covers(pool: &SqlitePool, library_id: i64) -> Vec<(String, String)> {
+    pub async fn find_all_covers(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Vec<(String, String)> {
         sqlx::query_as::<_, (String, String)>(
             r#"
             SELECT k, cover_url FROM (
@@ -53,7 +53,7 @@ impl LibraryGenreRepository {
                 FROM (
                     SELECT LOWER(genre) AS k, cover_url, MIN(rowid) AS premier
                     FROM library_albums
-                    WHERE library_id = ? AND genre IS NOT NULL AND cover_url IS NOT NULL AND cover_url != ''
+                    WHERE library_id IN (SELECT value FROM json_each(?)) AND genre IS NOT NULL AND cover_url IS NOT NULL AND cover_url != ''
                     GROUP BY LOWER(genre), cover_url
                 )
             )
@@ -61,14 +61,14 @@ impl LibraryGenreRepository {
             ORDER BY k, rang
             "#,
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .fetch_all(pool)
         .await
         .unwrap_or_default()
     }
 
     /// Les trois artistes les plus présents de chaque genre (genre en minuscules, artiste).
-    pub async fn find_top_artists(pool: &SqlitePool, library_id: i64) -> Vec<(String, String)> {
+    pub async fn find_top_artists(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Vec<(String, String)> {
         sqlx::query_as::<_, (String, String)>(
             r#"
             SELECT k, name FROM (
@@ -77,27 +77,27 @@ impl LibraryGenreRepository {
                 FROM library_tracks lt
                 JOIN library_cache lc ON lc.id = lt.cache_id
                 JOIN artists a ON a.id = lt.artist_id
-                WHERE lt.library_id = ? AND lc.genre IS NOT NULL AND lc.genre != ''
+                WHERE lt.library_id IN (SELECT value FROM json_each(?)) AND lc.genre IS NOT NULL AND lc.genre != ''
                 GROUP BY LOWER(lc.genre), a.id
             )
             WHERE rang <= 3
             ORDER BY k, rang
             "#,
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .fetch_all(pool)
         .await
         .unwrap_or_default()
     }
     /// Genres assez fournis pour un mix : (genre, titres, artistes), les plus fournis d'abord.
-    pub async fn find_mix_genres(pool: &SqlitePool, library_id: i64, min_tracks: i64, min_artists: i64) -> Result<Vec<(String, i64, i64)>, sqlx::Error> {
+    pub async fn find_mix_genres(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone, min_tracks: i64, min_artists: i64) -> Result<Vec<(String, i64, i64)>, sqlx::Error> {
         sqlx::query_as(sqlx::AssertSqlSafe(format!(
             "WITH {GENRE_NAMES}
              SELECT n.name, COUNT(*) AS c, COUNT(DISTINCT g.artist_id) FROM tagged g
              JOIN names n ON n.k = g.k
              GROUP BY g.k HAVING c >= ? AND COUNT(DISTINCT g.artist_id) >= ? ORDER BY c DESC"
         )))
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(min_tracks)
         .bind(min_artists)
         .fetch_all(pool)

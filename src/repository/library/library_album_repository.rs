@@ -151,7 +151,7 @@ impl LibraryAlbumRepository {
 
     pub async fn find_all_albums_by_library_id<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope>,
         missing_cover: Option<bool>,
     ) -> Result<Vec<AlbumListRow>, sqlx::Error>
     where
@@ -196,14 +196,14 @@ impl LibraryAlbumRepository {
             LEFT JOIN artists a ON a.id = la.artist_id
             LEFT JOIN library_tracks lt ON lt.library_album_id = la.id
             LEFT JOIN library_cache lc ON lc.id = lt.cache_id
-            WHERE la.library_id = ? {}
+            WHERE la.library_id IN (SELECT value FROM json_each(?)) {}
             GROUP BY la.id
             ORDER BY la.title_normalized ASC
             "#, where_query);
 
 
         let albums: Vec<AlbumListRow> = sqlx::query_as::<_, AlbumListRow>(sqlx::AssertSqlSafe(query_sql))
-        .bind(library_id)
+        .bind(library_id.into().json())
         .fetch_all(exec)
         .await?;
 
@@ -215,7 +215,7 @@ impl LibraryAlbumRepository {
     /// invité affiche zéro album alors que ses morceaux sont bien rangés.
     pub async fn find_albums_by_artist_id<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         artist_id: &str,
         participations: bool,
     ) -> Result<Vec<AlbumListRow>, sqlx::Error>
@@ -230,7 +230,7 @@ impl LibraryAlbumRepository {
             r#"
             WITH ses_albums(id) AS (
                 SELECT id FROM library_albums
-                    WHERE library_id = ?1 AND artist_id = ?2
+                    WHERE library_id IN (SELECT value FROM json_each(?1)) AND artist_id = ?2
                 UNION
                 SELECT t.library_album_id FROM library_tracks t
                     WHERE t.artist_id = ?2 AND t.library_album_id IS NOT NULL AND ?3
@@ -261,12 +261,12 @@ impl LibraryAlbumRepository {
             JOIN ses_albums s ON s.id = la.id
             LEFT JOIN artists a ON a.id = la.artist_id
             LEFT JOIN library_tracks lt ON lt.library_album_id = la.id
-            WHERE la.library_id = ?1
+            WHERE la.library_id IN (SELECT value FROM json_each(?1))
             GROUP BY la.id
             ORDER BY participation ASC, la.year DESC, la.title_normalized ASC
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(artist_id)
         .bind(participations)
         .fetch_all(exec)

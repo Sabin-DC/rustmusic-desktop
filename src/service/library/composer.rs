@@ -60,8 +60,8 @@ struct Tally {
     duration: f64,
 }
 
-pub async fn list(pool: &SqlitePool, library_id: i64) -> Result<Vec<ComposerView>, sqlx::Error> {
-    let rows = ComposerRepository::rows(pool, library_id).await?;
+pub async fn list(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Result<Vec<ComposerView>, sqlx::Error> {
+    let rows = ComposerRepository::rows(pool, library_id.clone()).await?;
     if rows.is_empty() {
         return Ok(vec![]);
     }
@@ -176,7 +176,7 @@ pub async fn search(pool: &SqlitePool, query: &str, limit: usize, profile_id: i6
 }
 
 /// Les morceaux d'un compositeur, toutes écritures de son nom confondues.
-pub async fn tracks(pool: &SqlitePool, library_id: i64, name: &str) -> Result<Vec<TrackListRow>, sqlx::Error> {
+pub async fn tracks(pool: &SqlitePool, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone, name: &str) -> Result<Vec<TrackListRow>, sqlx::Error> {
     let wanted = normalize_name(name);
     let rules = artist_split::rules();
     let ids: Vec<String> = ComposerRepository::rows(pool, library_id)

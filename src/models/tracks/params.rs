@@ -1,7 +1,7 @@
 /// Paramètres de `get_tracks_paginated` et `get_track_letter_offsets`.
 #[derive(Clone)]
 pub(crate) struct Params {
-    pub(crate) library: i64,
+    pub(crate) library: Vec<i64>,
     pub(crate) sort_dir: Option<String>,
     pub(crate) filter: Option<String>,
     pub(crate) missing_cover: Option<bool>,

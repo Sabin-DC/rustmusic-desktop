@@ -21,7 +21,7 @@
         </div>
     {:else}
     {#if let Some(av) = self.artists_view()}
-    {#each self.views.artists.iter() as page (page.library_id)}
+    {#each self.views.artists.iter() as page (page.key())}
     <div class="flex flex-col h-full">
         <div class="@container shrink-0 pl-4 md:pl-8 pr-4 md:pr-14 py-3">
             <div class="flex flex-wrap items-center gap-2.5">

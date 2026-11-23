@@ -287,7 +287,7 @@ impl LibraryTrackRepository {
 
     pub async fn find_all_tracks_by_library_id<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     ) -> Result<Vec<TrackListRow>, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>
@@ -374,11 +374,11 @@ impl LibraryTrackRepository {
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
 
-            WHERE lt.library_id = ?
+            WHERE lt.library_id IN (SELECT value FROM json_each(?))
             ORDER BY artist, album, disc_number, track_number
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .fetch_all(exec)
         .await?;
 
@@ -391,7 +391,7 @@ impl LibraryTrackRepository {
     /// le cumul des groupes donne la position de la première piste de chacun.
     pub async fn find_title_letter_offsets(
         pool: &SqlitePool,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         descending: bool,
         filter: Option<&str>,
         missing_cover: bool,
@@ -405,13 +405,13 @@ impl LibraryTrackRepository {
                LEFT JOIN library_cache lc ON lc.id = lt.cache_id
                LEFT JOIN library_albums la ON la.id = lt.library_album_id
                LEFT JOIN artists a ON a.id = lt.artist_id
-               WHERE lt.library_id = ?
+               WHERE lt.library_id IN (SELECT value FROM json_each(?))
                {}
                {}
                GROUP BY c ORDER BY c {}"#,
             filter_clause, cover_clause, if descending { "DESC" } else { "ASC" }
         );
-        let mut query = sqlx::query_as::<_, (Option<String>, i64)>(sqlx::AssertSqlSafe(sql)).bind(library_id);
+        let mut query = sqlx::query_as::<_, (Option<String>, i64)>(sqlx::AssertSqlSafe(sql)).bind(library_id.clone().into().json());
         if let Some(ref pat) = like_pattern {
             query = query.bind(pat).bind(pat).bind(pat);
         }
@@ -438,7 +438,7 @@ impl LibraryTrackRepository {
     /// Tracks paginés avec filtre et tri dynamique
     pub async fn find_tracks_paginated(
         pool: &SqlitePool,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         offset: i64,
         limit: i64,
         sort_col: &str,
@@ -461,14 +461,14 @@ impl LibraryTrackRepository {
                LEFT JOIN library_cache lc ON lc.id = lt.cache_id
                LEFT JOIN library_albums la ON la.id = lt.library_album_id
                LEFT JOIN artists a ON a.id = lt.artist_id
-               WHERE lt.library_id = ?
+               WHERE lt.library_id IN (SELECT value FROM json_each(?))
                {}
                {}"#,
             filter_clause, cover_clause
         );
 
         let mut count_query = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(count_sql))
-            .bind(library_id);
+            .bind(library_id.clone().into().json());
         if let Some(ref pat) = like_pattern {
             count_query = count_query.bind(pat).bind(pat).bind(pat);
         }
@@ -506,7 +506,7 @@ impl LibraryTrackRepository {
             LEFT JOIN library_albums la ON la.id = lt.library_album_id
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ?
+            WHERE lt.library_id IN (SELECT value FROM json_each(?))
             {}
             {}
             ORDER BY {} {}
@@ -518,7 +518,7 @@ impl LibraryTrackRepository {
         // WHERE, puis l'expression de tri qui la suit dans l'ORDER BY, puis
         // LIMIT et OFFSET. Intervertir ces deux-là ferait trier sur « 100 ».
         let mut data_query = sqlx::query_as::<_, TrackListRow>(sqlx::AssertSqlSafe(data_sql))
-            .bind(library_id);
+            .bind(library_id.clone().into().json());
         if let Some(ref pat) = like_pattern {
             data_query = data_query.bind(pat).bind(pat).bind(pat);
         }
@@ -537,7 +537,7 @@ impl LibraryTrackRepository {
     // Retourne les TrackListRow d'un artiste (via artist_id direct OU library_track_artists)
     pub async fn find_tracks_view_by_artist_id<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         artist_id: &str,
     ) -> Result<Vec<TrackListRow>, sqlx::Error>
     where
@@ -573,16 +573,16 @@ impl LibraryTrackRepository {
             LEFT JOIN library_albums la ON la.id = lt.library_album_id
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ?1
+            WHERE lt.library_id IN (SELECT value FROM json_each(?1))
               AND lt.id IN (
-                SELECT id FROM library_tracks WHERE artist_id = ?2 AND library_id = ?1
+                SELECT id FROM library_tracks WHERE artist_id = ?2 AND library_id IN (SELECT value FROM json_each(?1))
                 UNION
-                SELECT library_track_id FROM library_track_artists WHERE artist_id = ?2 AND library_id = ?1
+                SELECT library_track_id FROM library_track_artists WHERE artist_id = ?2 AND library_id IN (SELECT value FROM json_each(?1))
               )
             ORDER BY la.title, lt.disc_number, lt.track_number
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(artist_id)
         .fetch_all(exec)
         .await
@@ -590,7 +590,7 @@ impl LibraryTrackRepository {
 
     pub async fn find_tracks_view_by_artist_id_paginated<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         artist_id: &str,
         limit: i64,
         offset: i64,
@@ -627,7 +627,7 @@ impl LibraryTrackRepository {
             LEFT JOIN library_albums la ON la.id = lt.library_album_id
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ?1
+            WHERE lt.library_id IN (SELECT value FROM json_each(?1))
               AND (lt.artist_id = ?2 OR lt.id IN (
                 SELECT lta.library_track_id FROM library_track_artists lta WHERE lta.artist_id = ?2
               ))
@@ -635,7 +635,7 @@ impl LibraryTrackRepository {
             LIMIT ?3 OFFSET ?4
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(artist_id)
         .bind(limit)
         .bind(offset)
@@ -645,7 +645,7 @@ impl LibraryTrackRepository {
 
     pub async fn count_tracks_by_artist_id<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         artist_id: &str,
     ) -> Result<i64, sqlx::Error>
     where
@@ -655,13 +655,13 @@ impl LibraryTrackRepository {
             r#"
             SELECT COUNT(DISTINCT lt.id)
             FROM library_tracks lt
-            WHERE lt.library_id = ?1
+            WHERE lt.library_id IN (SELECT value FROM json_each(?1))
               AND (lt.artist_id = ?2 OR lt.id IN (
                 SELECT lta.library_track_id FROM library_track_artists lta WHERE lta.artist_id = ?2
               ))
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(artist_id)
         .fetch_one(exec)
         .await?;
@@ -757,7 +757,7 @@ impl LibraryTrackRepository {
 
     pub async fn find_all_tracks_album_by_library_id<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         library_album_id: String
     ) -> Result<Vec<TrackListRow>, sqlx::Error>
     where
@@ -831,11 +831,11 @@ impl LibraryTrackRepository {
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
 
-            WHERE lt.library_id = ? AND lt.library_album_id = ?
+            WHERE lt.library_id IN (SELECT value FROM json_each(?)) AND lt.library_album_id = ?
             ORDER BY artist, album, disc_number, track_number
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(library_album_id)
         .fetch_all(exec)
         .await?;
@@ -1010,7 +1010,7 @@ impl LibraryTrackRepository {
     #[allow(clippy::too_many_arguments)]
     pub async fn find_mix_tracks(
         pool: &sqlx::SqlitePool,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         kind: &str,
         genre: Option<&str>,
         decade: Option<i64>,
@@ -1057,12 +1057,12 @@ impl LibraryTrackRepository {
             LEFT JOIN library_albums la ON la.id = lt.library_album_id
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ? AND {criterion}
+            WHERE lt.library_id IN (SELECT value FROM json_each(?)) AND {criterion}
             ORDER BY RANDOM()
             LIMIT ?
         "#);
 
-        let mut query = sqlx::query_as::<_, TrackListRow>(sqlx::AssertSqlSafe(sql)).bind(library_id);
+        let mut query = sqlx::query_as::<_, TrackListRow>(sqlx::AssertSqlSafe(sql)).bind(library_id.clone().into().json());
         for t in &texts {
             query = query.bind(t);
         }
@@ -1079,7 +1079,7 @@ impl LibraryTrackRepository {
 
     pub async fn find_tracks_by_genre<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         genre: &str,
     ) -> Result<Vec<TrackListRow>, sqlx::Error>
     where
@@ -1110,11 +1110,11 @@ impl LibraryTrackRepository {
             LEFT JOIN library_albums la ON la.id = lt.library_album_id
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ? AND LOWER(lc.genre) = LOWER(?)
+            WHERE lt.library_id IN (SELECT value FROM json_each(?)) AND LOWER(lc.genre) = LOWER(?)
             ORDER BY la.title, disc_number, track_number
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(genre)
         .fetch_all(exec)
         .await?;
@@ -1126,7 +1126,7 @@ impl LibraryTrackRepository {
     /// d'abord, comme pour les mix et la page Années.
     pub async fn find_tracks_by_years<'e, E>(
         exec: E,
-        library_id: i64,
+        library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
         start: i64,
         end: i64,
     ) -> Result<Vec<TrackListRow>, sqlx::Error>
@@ -1158,12 +1158,12 @@ impl LibraryTrackRepository {
             LEFT JOIN library_albums la ON la.id = lt.library_album_id
             LEFT JOIN artists a ON a.id = lt.artist_id
             LEFT JOIN library_artists lat ON lat.artist_id = a.id AND lat.library_id = lt.library_id
-            WHERE lt.library_id = ?
+            WHERE lt.library_id IN (SELECT value FROM json_each(?))
               AND COALESCE(la.year, CAST(substr(lc.year, 1, 4) AS INTEGER)) BETWEEN ? AND ?
             ORDER BY la.title, la.id, disc_number, track_number
             "#
         )
-        .bind(library_id)
+        .bind(library_id.clone().into().json())
         .bind(start)
         .bind(end)
         .fetch_all(exec)
@@ -1343,11 +1343,11 @@ impl LibraryTrackRepository {
     }
 
     /// Tags supplémentaires (JSON) de chaque piste de la bibliothèque.
-    pub async fn find_tags_json<'e, E>(exec: E, library_id: i64) -> Result<Vec<Option<String>>, sqlx::Error>
+    pub async fn find_tags_json<'e, E>(exec: E, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Result<Vec<Option<String>>, sqlx::Error>
     where
         E: sqlx::Executor<'e, Database = sqlx::Sqlite>,
     {
-        sqlx::query_scalar("SELECT tags FROM library_tracks WHERE library_id = ?").bind(library_id).fetch_all(exec).await
+        sqlx::query_scalar("SELECT tags FROM library_tracks WHERE library_id IN (SELECT value FROM json_each(?))").bind(library_id.clone().into().json()).fetch_all(exec).await
     }
 
     /// Source de la piste (celle de sa bibliothèque, 0 = cet ordinateur).

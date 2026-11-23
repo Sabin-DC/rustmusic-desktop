@@ -749,10 +749,10 @@ pub async fn set_track_rating(
 
 pub async fn get_tracks(
     state: State<'_, AppState>,
-    library_id: i64
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone
 ) -> Result<Vec<TrackListRow>, String> {
 
-    LibraryTrackRepository::find_all_tracks_by_library_id(&state.pool, library_id)
+    LibraryTrackRepository::find_all_tracks_by_library_id(&state.pool, library_id.clone())
         .await
         .map_err(|e| format!("Failed to get tracks: {}", e))
 }
@@ -884,7 +884,7 @@ fn resolve_sort(sort_by: Option<&str>) -> (String, Option<String>) {
 
 pub async fn get_tracks_paginated(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     offset: i64,
     limit: i64,
     sort_by: Option<String>,
@@ -905,7 +905,7 @@ pub async fn get_tracks_paginated(
     };
 
     let (tracks, total) = LibraryTrackRepository::find_tracks_paginated(
-        &state.pool, library_id, offset, limit, &sort_col, sort_bind.as_deref(), dir,
+        &state.pool, library_id.clone(), offset, limit, &sort_col, sort_bind.as_deref(), dir,
         filter.as_deref(), missing_cover.unwrap_or(false), &extra,
     ).await.map_err(|e| format!("Failed to get tracks: {}", e))?;
 
@@ -921,7 +921,7 @@ pub struct LetterOffset {
 
 pub async fn get_track_letter_offsets(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     sort_dir: Option<String>,
     filter: Option<String>,
     missing_cover: Option<bool>,
@@ -931,17 +931,17 @@ pub async fn get_track_letter_offsets(
 ) -> Result<Vec<LetterOffset>, String> {
     let extra = TrackFilters { quality: quality.as_deref(), favorites: favorites.unwrap_or(false), genre: genre.as_deref() };
     let letters = LibraryTrackRepository::find_title_letter_offsets(
-        &state.pool, library_id, sort_dir.as_deref() == Some("desc"), filter.as_deref(), missing_cover.unwrap_or(false), &extra,
+        &state.pool, library_id.clone(), sort_dir.as_deref() == Some("desc"), filter.as_deref(), missing_cover.unwrap_or(false), &extra,
     ).await.map_err(|e| format!("Failed to get letter offsets: {}", e))?;
     Ok(letters.into_iter().map(|(letter, offset)| LetterOffset { letter, offset }).collect())
 }
 
 pub async fn get_tracks_by_album(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     library_album_id: String
 ) -> Result<Vec<TrackListRow>, String> {
-    LibraryTrackRepository::find_all_tracks_album_by_library_id(&state.pool, library_id, library_album_id)
+    LibraryTrackRepository::find_all_tracks_album_by_library_id(&state.pool, library_id.clone(), library_album_id)
         .await
         .map_err(|e| format!("Failed to get album tracks: {}", e))
 }
@@ -957,10 +957,10 @@ pub async fn get_album(
 
 pub async fn get_albums(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     missing_cover: Option<bool>
 ) -> Result<Vec<AlbumListRow>, String> {
-    LibraryAlbumRepository::find_all_albums_by_library_id(&state.pool, library_id, missing_cover)
+    LibraryAlbumRepository::find_all_albums_by_library_id(&state.pool, library_id.clone(), missing_cover)
         .await
         .map_err(|e| format!("Failed to get albums: {}", e))
 }
@@ -976,17 +976,17 @@ pub async fn get_artist(
 
 pub async fn get_tracks_by_artist(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     artist_id: String,
 ) -> Result<Vec<TrackListRow>, String> {
-    LibraryTrackRepository::find_tracks_view_by_artist_id(&state.pool, library_id, &artist_id)
+    LibraryTrackRepository::find_tracks_view_by_artist_id(&state.pool, library_id.clone(), &artist_id)
         .await
         .map_err(|e| format!("Failed to get artist tracks: {}", e))
 }
 
 pub async fn get_tracks_by_artist_paginated(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     artist_id: String,
     limit: Option<i64>,
     offset: Option<i64>,
@@ -995,8 +995,8 @@ pub async fn get_tracks_by_artist_paginated(
     let offset = offset.unwrap_or(0);
 
     let (tracks, total) = tokio::try_join!(
-        LibraryTrackRepository::find_tracks_view_by_artist_id_paginated(&state.pool, library_id, &artist_id, limit, offset),
-        LibraryTrackRepository::count_tracks_by_artist_id(&state.pool, library_id, &artist_id),
+        LibraryTrackRepository::find_tracks_view_by_artist_id_paginated(&state.pool, library_id.clone(), &artist_id, limit, offset),
+        LibraryTrackRepository::count_tracks_by_artist_id(&state.pool, library_id.clone(), &artist_id),
     ).map_err(|e| format!("Failed to get artist tracks: {}", e))?;
 
     Ok(PaginatedTracks { tracks, total })
@@ -1004,31 +1004,31 @@ pub async fn get_tracks_by_artist_paginated(
 
 pub async fn get_albums_by_artist(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     artist_id: String,
 ) -> Result<Vec<AlbumListRow>, String> {
-    LibraryAlbumRepository::find_albums_by_artist_id(&state.pool, library_id, &artist_id, true)
+    LibraryAlbumRepository::find_albums_by_artist_id(&state.pool, library_id.clone(), &artist_id, true)
         .await
         .map_err(|e| format!("Failed to get artist albums: {}", e))
 }
 
 pub async fn get_artists(
     state: State<'_, AppState>,
-    library_id: i64
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone
 ) -> Result<Vec<ArtistListRow>, String> {
-    LibraryArtistRepository::find_all_artists_by_library_id(&state.pool, library_id)
+    LibraryArtistRepository::find_all_artists_by_library_id(&state.pool, library_id.clone())
         .await
         .map_err(|e| format!("Failed to get artists: {}", e))
 }
 
 pub async fn get_similar_artists(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     artist_id: String,
     limit: Option<i64>,
 ) -> Result<Vec<ArtistListRow>, String> {
     let limit = limit.unwrap_or(10);
-    LibraryArtistRepository::find_similar_artists(&state.pool, library_id, &artist_id, limit)
+    LibraryArtistRepository::find_similar_artists(&state.pool, library_id.clone(), &artist_id, limit)
         .await
         .map_err(|e| format!("Failed to get similar artists: {}", e))
 }
@@ -1542,9 +1542,9 @@ pub struct TagColumnCandidate {
 /// c'est pourquoi elle n'est pas calculée au démarrage.
 pub async fn get_library_tag_keys(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
 ) -> Result<Vec<TagColumnCandidate>, String> {
-    let lines = LibraryTrackRepository::find_tags_json(&state.pool, library_id)
+    let lines = LibraryTrackRepository::find_tags_json(&state.pool, library_id.clone())
         .await
         .map_err(|e| format!("Failed to read tags: {e}"))?;
 
@@ -1613,24 +1613,24 @@ fn is_filled(val: &serde_json::Value) -> bool {
 /// `genre` avec le genre voulu.
 pub async fn get_mix_tracks(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     kind: String,
     genre: Option<String>,
     decade: Option<i64>,
     year: Option<i64>,
     limit: i64,
 ) -> Result<Vec<TrackListRow>, String> {
-    LibraryTrackRepository::find_mix_tracks(&state.pool, library_id, &kind, genre.as_deref(), decade, year, limit.clamp(1, 200))
+    LibraryTrackRepository::find_mix_tracks(&state.pool, library_id.clone(), &kind, genre.as_deref(), decade, year, limit.clamp(1, 200))
         .await
         .map_err(|e| format!("get_mix_tracks: {}", e))
 }
 
 pub async fn get_tracks_by_genre(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     genre: String,
 ) -> Result<Vec<TrackListRow>, String> {
-    LibraryTrackRepository::find_tracks_by_genre(&state.pool, library_id, &genre)
+    LibraryTrackRepository::find_tracks_by_genre(&state.pool, library_id.clone(), &genre)
         .await
         .map_err(|e| format!("get_tracks_by_genre: {}", e))
 }
@@ -1638,11 +1638,11 @@ pub async fn get_tracks_by_genre(
 /// Les titres d'une période (une décennie, ou une année quand `start == end`).
 pub async fn get_tracks_by_years(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
     start: i64,
     end: i64,
 ) -> Result<Vec<TrackListRow>, String> {
-    LibraryTrackRepository::find_tracks_by_years(&state.pool, library_id, start, end)
+    LibraryTrackRepository::find_tracks_by_years(&state.pool, library_id.clone(), start, end)
         .await
         .map_err(|e| format!("get_tracks_by_years: {}", e))
 }
@@ -1659,9 +1659,9 @@ pub struct GenreMix {
 }
 
 /// Les genres qui font un vrai mix (assez d'artistes et de titres), les plus fournis d'abord.
-pub async fn get_mix_genres(state: State<'_, AppState>, library_id: i64) -> Result<Vec<GenreMix>, String> {
+pub async fn get_mix_genres(state: State<'_, AppState>, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Result<Vec<GenreMix>, String> {
     use crate::core::smart_playlist::mix_variety::{MIN_ARTISTS, MIN_TRACKS};
-    let lines = LibraryGenreRepository::find_mix_genres(&state.pool, library_id, MIN_TRACKS, MIN_ARTISTS)
+    let lines = LibraryGenreRepository::find_mix_genres(&state.pool, library_id.clone(), MIN_TRACKS, MIN_ARTISTS)
         .await
         .map_err(|e| format!("get_mix_genres: {e}"))?;
     Ok(lines.into_iter().map(|(name, tracks_count, artists)| GenreMix { name, tracks_count, artists }).collect())
@@ -1669,19 +1669,19 @@ pub async fn get_mix_genres(state: State<'_, AppState>, library_id: i64) -> Resu
 
 pub async fn get_genres(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
 ) -> Result<Vec<GenreView>, String> {
-    let rows = LibraryGenreRepository::find_all_genres(&state.pool, library_id)
+    let rows = LibraryGenreRepository::find_all_genres(&state.pool, library_id.clone())
         .await
         .map_err(|e| format!("Failed to get genres: {}", e))?;
 
     // Pochettes et artistes phares en deux requêtes pour tous les genres, plutôt qu'une par genre.
     let mut covers: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    for (genre, cover) in LibraryGenreRepository::find_all_covers(&state.pool, library_id).await {
+    for (genre, cover) in LibraryGenreRepository::find_all_covers(&state.pool, library_id.clone()).await {
         covers.entry(genre).or_default().push(cover);
     }
     let mut artists: std::collections::HashMap<String, Vec<String>> = std::collections::HashMap::new();
-    for (genre, name) in LibraryGenreRepository::find_top_artists(&state.pool, library_id).await {
+    for (genre, name) in LibraryGenreRepository::find_top_artists(&state.pool, library_id.clone()).await {
         artists.entry(genre).or_default().push(name);
     }
 
@@ -1703,25 +1703,25 @@ pub async fn get_genres(
 
 pub async fn get_library_stats(
     state: State<'_, AppState>,
-    library_id: i64,
+    library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone,
 ) -> Result<LibraryStats, String> {
     let (total_tracks, total_duration_sec, total_size_bytes, avg_bitrate, total_play_count) =
-        LibraryStatsRepository::get_main_counters(&state.pool, library_id)
+        LibraryStatsRepository::get_main_counters(&state.pool, library_id.clone())
             .await
             .map_err(|e| format!("stats: {}", e))?;
 
-    let total_albums = LibraryStatsRepository::count_albums(&state.pool, library_id).await;
-    let total_artists = LibraryStatsRepository::count_artists(&state.pool, library_id).await;
-    let total_genres = LibraryStatsRepository::count_genres(&state.pool, library_id).await;
+    let total_albums = LibraryStatsRepository::count_albums(&state.pool, library_id.clone()).await;
+    let total_artists = LibraryStatsRepository::count_artists(&state.pool, library_id.clone()).await;
+    let total_genres = LibraryStatsRepository::count_genres(&state.pool, library_id.clone()).await;
 
-    let formats = LibraryStatsRepository::get_format_stats(&state.pool, library_id).await;
-    let quality_hires = LibraryStatsRepository::count_quality_hires(&state.pool, library_id).await;
-    let quality_lossless = LibraryStatsRepository::count_quality_lossless(&state.pool, library_id).await;
+    let formats = LibraryStatsRepository::get_format_stats(&state.pool, library_id.clone()).await;
+    let quality_hires = LibraryStatsRepository::count_quality_hires(&state.pool, library_id.clone()).await;
+    let quality_lossless = LibraryStatsRepository::count_quality_lossless(&state.pool, library_id.clone()).await;
     let quality_lossy = total_tracks - quality_hires - quality_lossless;
 
-    let top_genres = LibraryStatsRepository::get_top_genres(&state.pool, library_id).await;
-    let top_artists = LibraryStatsRepository::get_top_artists(&state.pool, library_id).await;
-    let top_played_rows = LibraryStatsRepository::get_top_played(&state.pool, library_id).await;
+    let top_genres = LibraryStatsRepository::get_top_genres(&state.pool, library_id.clone()).await;
+    let top_artists = LibraryStatsRepository::get_top_artists(&state.pool, library_id.clone()).await;
+    let top_played_rows = LibraryStatsRepository::get_top_played(&state.pool, library_id.clone()).await;
 
     Ok(LibraryStats {
         total_tracks, total_albums, total_artists, total_genres,

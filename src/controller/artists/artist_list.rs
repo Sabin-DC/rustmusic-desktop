@@ -9,12 +9,12 @@ use crate::models::shared::ListWindow;
 
 impl MusicApp {
     pub(crate) fn artists_open(&mut self) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         if self.views.artists.as_ref().is_some_and(|p| p.library_id == library) {
             return;
         }
         self.views.artists = Some(ArtistsPage {
-            library_id: library,
+            library_id: library.clone(),
             sort: "name".into(),
             search: String::new(),
             search_term: String::new(),
@@ -28,10 +28,11 @@ impl MusicApp {
             return;
         }
         let app = self.backend.app.clone();
+        let wanted = library.clone();
         self.backend.call(
             async move { composer_command::get_composers(app.state(), library).await.unwrap_or_default() },
             move |me, composers| {
-                let Some(page) = me.views.artists.as_mut().filter(|p| p.library_id == library) else { return false };
+                let Some(page) = me.views.artists.as_mut().filter(|p| p.library_id == wanted) else { return false };
                 page.composers = composers;
                 true
             },

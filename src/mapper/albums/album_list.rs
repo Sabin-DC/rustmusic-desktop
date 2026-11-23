@@ -42,7 +42,7 @@ impl AlbumsPage {
         self.year.map(|y| y.to_string()).unwrap_or_else(|| karbon_ui::intl::t("albums_view.year"))
     }
 
-    pub(crate) fn new(library_id: i64) -> Self {
+    pub(crate) fn new(library_id: Vec<i64>) -> Self {
         Self {
             library_id,
             sort: "title".into(),

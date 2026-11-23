@@ -15,7 +15,7 @@ pub(crate) const SIZE: i64 = 50;
 impl MusicApp {
     /// Tire les mix qui n'ont pas encore leur liste du jour.
     pub(crate) fn mixes_open(&mut self) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         let (a, b, c, d) = self.mix_specs();
         for spec in a.into_iter().chain(b).chain(c).chain(d) {
             if self.data.mixes.contains_key(&spec.key) {
@@ -25,6 +25,8 @@ impl MusicApp {
             let app = self.backend.app.clone();
             let key = spec.key.clone();
             let source = spec.source.clone();
+            let wanted = library.clone();
+            let library = library.clone();
             self.backend.call(
                 async move {
                     match source {
@@ -35,7 +37,7 @@ impl MusicApp {
                     }
                 },
                 move |me, tracks| {
-                    if me.data.library_id != Some(library) {
+                    if me.data.scope().as_ref() != Some(&wanted) {
                         return false;
                     }
                     me.data.mixes.insert(key, MixDraw { tracks: tracks.unwrap_or_default(), loaded: true });

@@ -24,7 +24,7 @@ pub const LETTERS: [&str; 27] = [
 ];
 
 impl TracksPage {
-    pub(crate) fn new(library_id: i64) -> Self {
+    pub(crate) fn new(library_id: Vec<i64>) -> Self {
         Self {
             library_id,
             sort: "title".into(),
@@ -64,7 +64,7 @@ impl TracksPage {
 
     pub(crate) fn params(&self) -> Params {
         Params {
-            library: self.library_id,
+            library: self.library_id.clone(),
             sort_dir: Some(if self.asc { "asc" } else { "desc" }.to_string()),
             filter: (!self.sent.is_empty()).then(|| self.sent.clone()),
             missing_cover: Some(self.without_cover),

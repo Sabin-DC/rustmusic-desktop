@@ -9,11 +9,11 @@ use crate::service::library::artist_split;
 use crate::service::library::composer::{self, ComposerView};
 use crate::app::platform::app_state::AppState;
 
-pub async fn get_composers(state: State<'_, AppState>, library_id: i64) -> Result<Vec<ComposerView>, String> {
+pub async fn get_composers(state: State<'_, AppState>, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone) -> Result<Vec<ComposerView>, String> {
     composer::list(&state.pool, library_id).await.map_err(|e| format!("get_composers: {e}"))
 }
 
-pub async fn get_tracks_by_composer(state: State<'_, AppState>, library_id: i64, name: String) -> Result<Vec<TrackListRow>, String> {
+pub async fn get_tracks_by_composer(state: State<'_, AppState>, library_id: impl Into<crate::repository::library::scope::LibraryScope> + Clone, name: String) -> Result<Vec<TrackListRow>, String> {
     composer::tracks(&state.pool, library_id, &name).await.map_err(|e| format!("get_tracks_by_composer: {e}"))
 }
 

@@ -8,7 +8,7 @@ use crate::models::app::Menu;
 
 impl MusicApp {
     pub(crate) fn albums_open(&mut self) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         if !self.views.albums.as_ref().is_some_and(|p| p.library_id == library) {
             self.views.albums = Some(AlbumsPage::new(library));
         }
@@ -113,7 +113,7 @@ impl MusicApp {
 
     /// Les morceaux de l'album à la fin de la file.
     pub(crate) fn enqueue_album(&mut self, album_id: String) {
-        let Some(library) = self.data.library_id else { return };
+        let Some(library) = self.data.scope() else { return };
         let app = self.backend.app.clone();
         self.backend.call(
             async move {

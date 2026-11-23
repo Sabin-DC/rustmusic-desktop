@@ -3,7 +3,7 @@ use crate::query::track::track_list_row::TrackListRow;
 
 /// L'état de la page.
 pub struct TracksPage {
-    pub library_id: i64,
+    pub library_id: Vec<i64>,
     pub sort: String,
     pub asc: bool,
     pub detailed: bool,
@@ -32,4 +32,11 @@ pub struct TracksPage {
     /// Index absolu à amener en haut de la nouvelle zone.
     pub anchor: Option<i64>,
     pub letters: Vec<(String, i64)>,
+}
+
+impl TracksPage {
+    /// Identifie les bibliothèques affichées, pour renouveler la page quand elles changent.
+    pub fn key(&self) -> String {
+        self.library_id.iter().map(i64::to_string).collect::<Vec<_>>().join(",")
+    }
 }

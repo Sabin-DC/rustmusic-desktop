@@ -15,3 +15,4 @@ pub mod library_pin_repository;
 pub mod artist_split_repository;
 pub mod image_repository;
 pub mod composer_repository;
+pub mod scope;

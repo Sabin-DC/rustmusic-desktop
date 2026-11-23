@@ -65,11 +65,30 @@ impl MusicApp {
             }
             Msg::ChooseLibrary(id) => {
                 self.menu = None;
-                if self.data.library_id != Some(id) {
+                if self.data.library_id != Some(id) || self.data.multi_library() {
                     self.data.library_id = Some(id);
+                    self.data.library_ids = vec![id];
                     self.load_library_data();
                     self.load_page();
                 }
+            }
+            Msg::ToggleLibrary(id) => {
+                // Le menu reste ouvert : on coche plusieurs bibliothèques à la suite.
+                let mut ids = self.data.scope().unwrap_or_default();
+                if let Some(at) = ids.iter().position(|i| *i == id) {
+                    // La dernière cochée reste.
+                    if ids.len() > 1 {
+                        ids.remove(at);
+                    }
+                } else {
+                    ids.push(id);
+                }
+                if self.data.library_id.is_none_or(|p| !ids.contains(&p)) {
+                    self.data.library_id = ids.first().copied();
+                }
+                self.data.library_ids = ids;
+                self.load_library_data();
+                self.load_page();
             }
             Msg::TabPlacement(p) => {
                 self.set_setting(

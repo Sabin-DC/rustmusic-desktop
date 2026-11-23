@@ -41,14 +41,14 @@ fn natural_order_reads_numbers_as_numbers() {
 #[test]
 fn albums_are_sorted_by_title_without_articles() {
     let albums = [album("The Wall", "Pink Floyd", Some(1979), None), album("Animals", "Pink Floyd", Some(1977), None), album("Meddle", "Pink Floyd", Some(1971), None)];
-    let page = AlbumsPage::new(1);
+    let page = AlbumsPage::new(vec![1]);
     assert_eq!(titles(&filter_albums(&page, &albums)), ["Animals", "Meddle", "The Wall"]);
 }
 
 #[test]
 fn the_year_sort_puts_recent_albums_first() {
     let albums = [album("A", "x", Some(1971), None), album("B", "x", Some(1999), None), album("C", "x", None, None)];
-    let mut page = AlbumsPage::new(1);
+    let mut page = AlbumsPage::new(vec![1]);
     page.sort = "year".into();
     assert_eq!(titles(&filter_albums(&page, &albums)), ["B", "A", "C"]);
 }
@@ -60,7 +60,7 @@ fn search_and_genre_filters_combine() {
         album("Blue Train", "John Coltrane", Some(1957), Some("Jazz")),
         album("Bleach", "Nirvana", Some(1989), None),
     ];
-    let mut page = AlbumsPage::new(1);
+    let mut page = AlbumsPage::new(vec![1]);
     page.search_term = "nirvana".into();
     assert_eq!(titles(&filter_albums(&page, &albums)), ["Bleach", "Nevermind"]);
     page.genre = Some("rock".into());

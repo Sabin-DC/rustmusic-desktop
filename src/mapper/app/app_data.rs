@@ -115,6 +115,22 @@ impl Data {
         self.queue.tracks.iter().enumerate().skip(start)
     }
 
+    /// Les bibliothèques dont on affiche le contenu : celles cochées, sinon la courante.
+    pub fn scope(&self) -> Option<Vec<i64>> {
+        let id = self.library_id?;
+        let mut ids: Vec<i64> = self.library_ids.iter().copied().filter(|i| self.libraries.iter().any(|l| l.id == *i)).collect();
+        if !ids.contains(&id) {
+            ids.insert(0, id);
+        }
+        ids.sort_unstable();
+        Some(ids)
+    }
+
+    /// Plusieurs bibliothèques sont-elles cochées ?
+    pub fn multi_library(&self) -> bool {
+        self.scope().is_some_and(|s| s.len() > 1)
+    }
+
     /// La bibliothèque par défaut, sinon la première.
     pub fn pick_default_library(&self) -> Option<i64> {
         self.libraries

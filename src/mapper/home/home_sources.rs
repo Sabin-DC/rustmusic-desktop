@@ -58,6 +58,7 @@ pub(crate) fn sources(data: &Data) -> Vec<Source> {
 }
 
 pub(crate) fn libraries(data: &Data, source: Option<i64>) -> Vec<Library> {
+    let scope = data.scope().unwrap_or_default();
     data.libraries
         .iter()
         .filter(|l| match source {
@@ -79,6 +80,7 @@ pub(crate) fn libraries(data: &Data, source: Option<i64>) -> Vec<Library> {
                 tracks_count,
                 albums,
                 default_value: l.is_default,
+                active: scope.contains(&l.id),
             }
         })
         .collect()

@@ -201,6 +201,8 @@ pub enum Msg {
     ChooseSource(usize),
     /// Bibliothèque par identifiant.
     ChooseLibrary(i64),
+    /// Coche ou décoche une bibliothèque : le contenu affiché est la réunion des cochées.
+    ToggleLibrary(i64),
     TabPlacement(u8),
     /// Index dans `Section::ALL`.
     ToggleTab(usize),

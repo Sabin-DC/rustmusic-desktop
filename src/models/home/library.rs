@@ -8,4 +8,6 @@ pub struct Library {
     /// « 1 234 titres · 56 albums ».
     pub summary: String,
     pub default_value: bool,
+    /// Cochée : son contenu est affiché.
+    pub active: bool,
 }

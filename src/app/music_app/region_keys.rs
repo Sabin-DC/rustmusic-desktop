@@ -41,12 +41,13 @@ impl MusicApp {
         let tags = self.data.player.audio.as_ref().map(|a| (&a.tags.album, &a.tags.album_artist, &a.tags.artist));
         let _ = write!(
             key,
-            "|{:?}{:?}{:?}{:?}{:?}{:?}",
+            "|{:?}{:?}{:?}{:?}{:?}{:?}{:?}",
             self.route(),
             self.sidebar_collapsed,
             self.footer_collapsed,
             self.source,
             self.data.library_id,
+            self.data.scope(),
             self.data.tabs_placement(),
         );
         let _ = write!(

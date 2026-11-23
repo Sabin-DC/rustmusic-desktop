@@ -190,8 +190,18 @@ impl ViewModel {
             .position(|b| Some(b.id) == data.library_id)
             .unwrap_or(0);
         let current_source = sources.get(source).or(sources.first()).cloned().expect("au moins une source");
-        let current_library: Vec<Library> =
+        let mut current_library: Vec<Library> =
             libraries.iter().find(|b| Some(b.id) == data.library_id).cloned().into_iter().collect();
+        // Plusieurs cochées : un seul bloc, leurs noms réunis et leurs titres additionnés.
+        let checked: Vec<&crate::entity::library::library::Library> =
+            data.libraries.iter().filter(|l| data.scope().is_some_and(|s| s.contains(&l.id))).collect();
+        if checked.len() > 1 {
+            if let Some(first) = current_library.first_mut() {
+                first.name = checked.iter().map(|l| l.name.as_str()).collect::<Vec<_>>().join(" + ");
+                first.tracks_count =
+                    karbon_ui::intl::t_count(checked.iter().map(|l| l.total_tracks).sum(), "home.track_one", "home.tracks_n");
+            }
+        }
         let library_summary = current_library
             .first()
             .map(|b| {
